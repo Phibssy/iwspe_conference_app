@@ -1,0 +1,61 @@
+@page "/admin"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<h1>Admin</h1>
+<p>This view is protected by Azure AD. Admin functionalities: upload program, view registrations, manage events.</p>
+
+<h3>Registration fields</h3>
+<ul>
+  <li><strong>Name</strong> (required)</li>
+  <li><strong>Email</strong> (required)</li>
+  <li><strong>Affiliation</strong> (required; e.g., university)</li>
+  <li><strong>Phone</strong> (optional)</li>
+  <li><strong>Selected events</strong> (array of event IDs)</li>
+</ul>
+
+<button @onclick="LoadRegistrations">Load registrations (protected)</button>
+
+@if (loading)
+{
+    <p>Loading…</p>
+}
+else if (error != null)
+{
+    <p style="color:red">Error: @error</p>
+}
+else if (regs != null)
+{
+    <h4>Registrations</h4>
+    <ul>
+        @foreach (var r in regs)
+        {
+            <li>@r.Name — @r.Email — @r.Affiliation</li>
+        }
+    </ul>
+}
+
+@code {
+    [Inject] private Conference.Client.Services.ApiService Api { get; set; }
+    private bool loading = false;
+    private string error;
+    private RegistrationDto[] regs;
+
+    private class RegistrationDto { public string Name { get; set; } public string Email { get; set; } public string Affiliation { get; set; } }
+
+    private async Task LoadRegistrations()
+    {
+        loading = true;
+        error = null;
+        var resp = await Api.GetRegistrationsAsync();
+        if (!resp.IsSuccessStatusCode)
+        {
+            error = $"Server returned {(int)resp.StatusCode} {resp.ReasonPhrase}";
+        }
+        else
+        {
+            var json = await resp.Content.ReadAsStringAsync();
+            regs = System.Text.Json.JsonSerializer.Deserialize<RegistrationDto[]>(json);
+        }
+        loading = false;
+    }
+}

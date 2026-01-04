@@ -1,0 +1,33 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '7.0.x'
+      - name: Build server
+        run: |
+          dotnet build ./server/Conference.Functions.csproj --configuration Release
+      - name: Build client
+        run: |
+          dotnet build ./client/Conference.Client.csproj --configuration Release
+      - name: Run tests
+        run: |
+          echo "Add tests later"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Azure (manual step)
+        run: echo "Add deployment steps for Azure Static Web Apps and Functions. Use secrets: AZURE_STATIC_WEBAPP_API_TOKEN, AZURE_CREDENTIALS, etc."

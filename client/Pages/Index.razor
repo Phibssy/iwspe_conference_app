@@ -1,0 +1,14 @@
+@page "/"
+
+<h1>Conference Program</h1>
+<p>Welcome to the conference app demo. The program will be loaded from the backend.</p>
+
+<button @onclick="LoadProgram">Load Program (sample)</button>
+
+@code {
+    private async Task LoadProgram()
+    {
+        // TODO: call backend `GET /api/program` to fetch program
+        await Task.CompletedTask;
+    }
+}

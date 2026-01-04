@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+local.settings.json
+*.user
+*.suo
+.env
+**/bin
+**/obj
+.DS_Store
+node_modules/
