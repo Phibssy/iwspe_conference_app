@@ -47,6 +47,49 @@ namespace Conference.Functions.Services
             return results;
         }
 
+        public async Task<int> CountConfirmedForEventAsync(string eventId)
+        {
+            var sql = "SELECT VALUE COUNT(1) FROM c JOIN s IN c.EventSelections WHERE s.EventId = @eventId AND s.Status = 'confirmed'";
+            var iterator = _registrationsContainer.GetItemQueryIterator<int>(new QueryDefinition(sql).WithParameter("@eventId", eventId));
+            var count = 0;
+            while (iterator.HasMoreResults)
+            {
+                var page = await iterator.ReadNextAsync();
+                count += page.Resource.FirstOrDefault();
+            }
+            return count;
+        }
+
+        public async Task<int> CountWaitlistedForEventAsync(string eventId)
+        {
+            var sql = "SELECT VALUE COUNT(1) FROM c JOIN s IN c.EventSelections WHERE s.EventId = @eventId AND s.Status = 'waitlisted'";
+            var iterator = _registrationsContainer.GetItemQueryIterator<int>(new QueryDefinition(sql).WithParameter("@eventId", eventId));
+            var count = 0;
+            while (iterator.HasMoreResults)
+            {
+                var page = await iterator.ReadNextAsync();
+                count += page.Resource.FirstOrDefault();
+            }
+            return count;
+        }
+
+        public async Task<Registration> GetFirstWaitlistedForEventAsync(string eventId)
+        {
+            // For simplicity, pull all registrations and find the earliest created with a waitlisted entry
+            var regs = await GetRegistrationsAsync();
+            var waitlisted = regs.Where(r => r.EventSelections != null && r.EventSelections.Any(s => s.EventId == eventId && s.Status == "waitlisted"))
+                                 .OrderBy(r => DateTime.TryParse(r.CreatedAt, out var d) ? d : DateTime.MaxValue)
+                                 .FirstOrDefault();
+            return waitlisted;
+        }
+
+        public async Task UpsertRegistrationAsync(Registration reg)
+        {
+            if (string.IsNullOrWhiteSpace(reg.Id)) reg.Id = Guid.NewGuid().ToString();
+            if (string.IsNullOrWhiteSpace(reg.CreatedAt)) reg.CreatedAt = DateTime.UtcNow.ToString("o");
+            await _registrationsContainer.UpsertItemAsync(reg, new PartitionKey(reg.Id));
+        }
+
         public async Task UpsertProgramDocumentAsync(ProgramDocument program)
         {
             if (string.IsNullOrWhiteSpace(program.Id)) program.Id = Guid.NewGuid().ToString();
