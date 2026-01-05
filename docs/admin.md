@@ -17,11 +17,11 @@ This guide describes admin tasks: uploading program documents, inspecting regist
 Example token acquisition (developer note):
 - Use the Blazor admin UI sign-in which will request the API scope `api://<client-id>/access_as_user` at login, then call the promote endpoint with the acquired access token.
 
-## Admin UI (next steps)
-- I will implement a small admin UI panel that will:
-  - Show event list with capacity and waitlist counts
-  - Show list of waitlisted registrations per event (with "promote" button)
-  - Allow CSV export of registrations
-  - Allow toggling `ENFORCE_CAPACITY` in environment (admin controlled)
+## Admin UI (available now)
+- A small Admin Waitlist Manager has been added at the route `/admin/waitlist`.
+  - It lists events (title, capacity), shows counts for confirmed & waitlisted registrations, and provides a **Promote** button to promote the next waitlisted attendee for that event.
+  - The Admin page is protected by Azure AD; you must sign-in as an admin and have the API scope configured to call `POST /api/registrations/promote/{eventId}`.
 
-This UI will be added as a follow-up to the `feature/capacity-waitlist` branch and we will add UI tests for the workflows.
+Tips:
+- Open the app and navigate to `/admin`, then click **Open Waitlist Manager**.
+- The Promote operation calls the API and refreshes counts on success.
