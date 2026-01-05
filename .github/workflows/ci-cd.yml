@@ -11,14 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '7.0.x'
+
+      - name: Show .NET info
+        run: dotnet --info
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore server
+        run: dotnet restore ./server/Conference.Functions.csproj
+
       - name: Build server
-        run: dotnet build ./server/Conference.Functions.csproj --configuration Release
+        run: dotnet build ./server/Conference.Functions.csproj --configuration Release --no-restore
+
+      - name: Restore client
+        run: dotnet restore ./client/Conference.Client.csproj
+
       - name: Build client
-        run: dotnet build ./client/Conference.Client.csproj --configuration Release
+        run: dotnet build ./client/Conference.Client.csproj --configuration Release --no-restore
+
       - name: Run tests
         run: echo "Add tests later"
 
