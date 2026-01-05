@@ -14,6 +14,7 @@
 </ul>
 
 <button @onclick="LoadRegistrations">Load registrations (protected)</button>
+<button class="btn btn-secondary" @onclick="NavigateToWaitlist">Open Waitlist Manager</button>
 
 @if (loading)
 {
@@ -36,7 +37,10 @@ else if (regs != null)
 
 @code {
     [Inject] private Conference.Client.Services.ApiService Api { get; set; }
+    [Inject] private NavigationManager Nav { get; set; }
     private bool loading = false;
+
+    private void NavigateToWaitlist() => Nav.NavigateTo("/admin/waitlist");
     private string error;
     private RegistrationDto[] regs;
 

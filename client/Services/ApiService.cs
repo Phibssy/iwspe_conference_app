@@ -42,5 +42,17 @@ namespace Conference.Client.Services
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             return await _http.PostAsync("api/program/upload", content);
         }
+
+        public async Task<HttpResponseMessage> GetProgramsAsync()
+        {
+            // public endpoint
+            return await _http.GetAsync("api/program");
+        }
+
+        public async Task<HttpResponseMessage> PromoteWaitlistAsync(string eventId)
+        {
+            if (!await AttachTokenAsync()) return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+            return await _http.PostAsync($"api/registrations/promote/{eventId}", null);
+        }
     }
 }
