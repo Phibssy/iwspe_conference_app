@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Conference.Functions.Models
 {
     public class Registration
@@ -8,5 +11,7 @@ namespace Conference.Functions.Models
         public string Affiliation { get; set; }
         public string Phone { get; set; }
         public string[] SelectedEvents { get; set; }
+        public EventSelection[] EventSelections { get; set; }
+        public string CreatedAt { get; set; }
     }
 }

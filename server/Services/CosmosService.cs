@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 using Conference.Functions.Models;
 
 namespace Conference.Functions.Services
@@ -10,7 +10,7 @@ namespace Conference.Functions.Services
     public class CosmosService
     {
         private readonly CosmosClient _client;
-        private readonly CosmosDatabase _database;
+        private readonly Database _database;
         private readonly Container _programContainer;
         private readonly Container _registrationsContainer;
 
@@ -21,11 +21,27 @@ namespace Conference.Functions.Services
             var dbName = Environment.GetEnvironmentVariable("COSMOS_DB_DATABASE") ?? "ConferenceDb";
             var programContainerName = Environment.GetEnvironmentVariable("COSMOS_DB_CONTAINER_PROGRAM") ?? "Program";
             var regContainerName = Environment.GetEnvironmentVariable("COSMOS_DB_CONTAINER_REGISTRATIONS") ?? "Registrations";
-
-            _client = new CosmosClient(endpoint, key);
-            _database = _client.CreateDatabaseIfNotExistsAsync(dbName).GetAwaiter().GetResult();
-            _programContainer = _database.CreateContainerIfNotExistsAsync(programContainerName, "/id").GetAwaiter().GetResult();
-            _registrationsContainer = _database.CreateContainerIfNotExistsAsync(regContainerName, "/id").GetAwaiter().GetResult();
+            
+            // For local emulator, disable SSL validation
+            var options = new CosmosClientOptions
+            {
+                ConnectionMode = ConnectionMode.Gateway,
+                HttpClientFactory = () => new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
+                })
+            };
+            
+            _client = new CosmosClient(endpoint, key, options);
+            
+            var dbResponse = _client.CreateDatabaseIfNotExistsAsync(dbName).GetAwaiter().GetResult();
+            _database = dbResponse.Database;
+            
+            var programContainerResponse = _database.CreateContainerIfNotExistsAsync(programContainerName, "/id").GetAwaiter().GetResult();
+            _programContainer = programContainerResponse.Container;
+            
+            var registrationsContainerResponse = _database.CreateContainerIfNotExistsAsync(regContainerName, "/id").GetAwaiter().GetResult();
+            _registrationsContainer = registrationsContainerResponse.Container;
         }
 
         public async Task AddRegistrationAsync(Registration reg)

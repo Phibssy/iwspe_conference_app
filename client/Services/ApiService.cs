@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -53,6 +52,12 @@ namespace Conference.Client.Services
         {
             if (!await AttachTokenAsync()) return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
             return await _http.PostAsync($"api/registrations/promote/{eventId}", null);
+        }
+        
+        public async Task<HttpResponseMessage> GetBusScheduleAsync()
+        {
+            // public endpoint
+            return await _http.GetAsync("api/busschedule");
         }
     }
 }

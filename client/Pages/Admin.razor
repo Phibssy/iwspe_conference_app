@@ -1,10 +1,14 @@
 @page "/admin"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@attribute [Authorize]
+@inject Conference.Client.Services.ApiService Api
+@inject NavigationManager Nav
 
-<h1>Admin</h1>
-<p>This view is protected by Azure AD. Admin functionalities: upload program, view registrations, manage events.</p>
+<h1>Admin Dashboard</h1>
+<p>This view is protected by Azure AD.</p>
 
-<h3>Registration fields</h3>
+<h3>Registration Fields</h3>
 <ul>
   <li><strong>Name</strong> (required)</li>
   <li><strong>Email</strong> (required)</li>
@@ -13,53 +17,83 @@
   <li><strong>Selected events</strong> (array of event IDs)</li>
 </ul>
 
-<button @onclick="LoadRegistrations">Load registrations (protected)</button>
-<button class="btn btn-secondary" @onclick="NavigateToWaitlist">Open Waitlist Manager</button>
+<div class="button-group">
+    <button class="btn btn-primary" @onclick="LoadRegistrations">Load Registrations</button>
+    <button class="btn btn-secondary" @onclick="NavigateToWaitlist">Open Waitlist Manager</button>
+</div>
 
 @if (loading)
 {
     <p>Loading…</p>
 }
-else if (error != null)
+else if (!string.IsNullOrEmpty(error))
 {
     <p style="color:red">Error: @error</p>
 }
-else if (regs != null)
+else if (regs != null && regs.Count > 0)
 {
-    <h4>Registrations</h4>
-    <ul>
-        @foreach (var r in regs)
-        {
-            <li>@r.Name — @r.Email — @r.Affiliation</li>
-        }
-    </ul>
+    <h4>Registrations (@regs.Count)</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Affiliation</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in regs)
+            {
+                <tr>
+                    <td>@r.Name</td>
+                    <td>@r.Email</td>
+                    <td>@r.Affiliation</td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
 @code {
-    [Inject] private Conference.Client.Services.ApiService Api { get; set; }
-    [Inject] private NavigationManager Nav { get; set; }
     private bool loading = false;
+    private string? error;
+    private List<RegistrationDto>? regs;
 
     private void NavigateToWaitlist() => Nav.NavigateTo("/admin/waitlist");
-    private string error;
-    private RegistrationDto[] regs;
-
-    private class RegistrationDto { public string Name { get; set; } public string Email { get; set; } public string Affiliation { get; set; } }
 
     private async Task LoadRegistrations()
     {
         loading = true;
         error = null;
-        var resp = await Api.GetRegistrationsAsync();
-        if (!resp.IsSuccessStatusCode)
+        try
         {
-            error = $"Server returned {(int)resp.StatusCode} {resp.ReasonPhrase}";
+            var resp = await Api.GetRegistrationsAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                error = $"Server returned {(int)resp.StatusCode} {resp.ReasonPhrase}";
+            }
+            else
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                regs = JsonSerializer.Deserialize<List<RegistrationDto>>(json, 
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
         }
-        else
+        catch (Exception ex)
         {
-            var json = await resp.Content.ReadAsStringAsync();
-            regs = System.Text.Json.JsonSerializer.Deserialize<RegistrationDto[]>(json);
+            error = ex.Message;
         }
-        loading = false;
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private class RegistrationDto 
+    { 
+        public string? Id { get; set; }
+        public string? Name { get; set; } 
+        public string? Email { get; set; } 
+        public string? Affiliation { get; set; } 
     }
 }
