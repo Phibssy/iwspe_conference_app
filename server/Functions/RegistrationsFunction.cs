@@ -18,10 +18,10 @@ namespace Conference.Functions
         {
             var body = await new StreamReader(req.Body).ReadToEndAsync();
             var reg = JsonSerializer.Deserialize<Registration>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (reg == null || string.IsNullOrWhiteSpace(reg.Email) || string.IsNullOrWhiteSpace(reg.Name) || string.IsNullOrWhiteSpace(reg.Affiliation))
+            if (!Conference.Functions.Services.ValidationService.TryValidateRegistration(reg, out var validationError))
             {
                 var bad = req.CreateResponse(HttpStatusCode.BadRequest);
-                await bad.WriteStringAsync(JsonSerializer.Serialize(new { error = "name, email and affiliation are required" }));
+                await bad.WriteStringAsync(JsonSerializer.Serialize(new { error = validationError }));
                 return bad;
             }
 
