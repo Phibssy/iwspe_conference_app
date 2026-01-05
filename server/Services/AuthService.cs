@@ -4,8 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.IdentityModel.Protocols;
+// Remove the ambiguous using and be specific
+using Microsoft.Azure.Functions.Worker.Http;  // Keep this
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,9 +16,10 @@ namespace Conference.Functions.Services
         private static readonly string TenantId = Environment.GetEnvironmentVariable("AZURE_AD_TENANT_ID");
         private static readonly string ClientId = Environment.GetEnvironmentVariable("AZURE_AD_CLIENT_ID");
         private static readonly string OpenIdConfigUrl = $"https://login.microsoftonline.com/{TenantId}/v2.0/.well-known/openid-configuration";
-        private static readonly ConfigurationManager<OpenIdConnectConfiguration> _configManager = new ConfigurationManager<OpenIdConnectConfiguration>(OpenIdConfigUrl, new OpenIdConnectConfigurationRetriever());
+        private static readonly Microsoft.IdentityModel.Protocols.ConfigurationManager<OpenIdConnectConfiguration> _configManager = 
+            new Microsoft.IdentityModel.Protocols.ConfigurationManager<OpenIdConnectConfiguration>(OpenIdConfigUrl, new OpenIdConnectConfigurationRetriever());
 
-        public static async Task<ClaimsPrincipal> ValidateTokenAsync(HttpRequestData req)
+        public static async Task<ClaimsPrincipal> ValidateTokenAsync(Microsoft.Azure.Functions.Worker.Http.HttpRequestData req)
         {
             if (!req.Headers.TryGetValues("Authorization", out var vals)) return null;
             var auth = vals.FirstOrDefault();
@@ -51,7 +52,7 @@ namespace Conference.Functions.Services
             }
         }
 
-        public static HttpResponseData UnauthorizedResponse(HttpRequestData req)
+        public static Microsoft.Azure.Functions.Worker.Http.HttpResponseData UnauthorizedResponse(Microsoft.Azure.Functions.Worker.Http.HttpRequestData req)
         {
             var resp = req.CreateResponse(HttpStatusCode.Unauthorized);
             resp.WriteStringAsync("Unauthorized").GetAwaiter().GetResult();

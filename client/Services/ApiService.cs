@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -41,6 +40,24 @@ namespace Conference.Client.Services
             var content = new StringContent(JsonSerializer.Serialize(program));
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             return await _http.PostAsync("api/program/upload", content);
+        }
+
+        public async Task<HttpResponseMessage> GetProgramsAsync()
+        {
+            // public endpoint
+            return await _http.GetAsync("api/program");
+        }
+
+        public async Task<HttpResponseMessage> PromoteWaitlistAsync(string eventId)
+        {
+            if (!await AttachTokenAsync()) return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+            return await _http.PostAsync($"api/registrations/promote/{eventId}", null);
+        }
+        
+        public async Task<HttpResponseMessage> GetBusScheduleAsync()
+        {
+            // public endpoint
+            return await _http.GetAsync("api/busschedule");
         }
     }
 }

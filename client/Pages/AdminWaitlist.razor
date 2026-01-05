@@ -1,0 +1,133 @@
+@page "/admin/waitlist"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject Conference.Client.Services.ApiService Api
+@inject Microsoft.JSInterop.IJSRuntime JS
+@using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
+
+<h3>Admin: Capacity & Waitlist</h3>
+
+@if (loading)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>Capacity</th>
+                <th>Registered</th>
+                <th>Waitlist</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ev in events)
+            {
+                <tr>
+                    <td>@ev.Title</td>
+                    <td>@(ev.Capacity ?? 0)</td>
+                    <td>@(counts.GetValueOrDefault(ev.Id).registered)</td>
+                    <td>@(counts.GetValueOrDefault(ev.Id).waitlist)</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" @onclick="() => Promote(ev.Id)">Promote</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool loading = true;
+    private List<EventDto> events = new();
+    private Dictionary<string, (int registered, int waitlist)> counts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        counts.Clear();
+        events.Clear();
+
+        // programs
+        var pResp = await Api.GetProgramsAsync();
+        if (pResp.IsSuccessStatusCode)
+        {
+            var s = await pResp.Content.ReadAsStringAsync();
+            var arr = JsonSerializer.Deserialize<List<EventDto>>(s, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (arr != null) events = arr;
+        }
+
+        // registrations
+        var rResp = await Api.GetRegistrationsAsync();
+        if (rResp.IsSuccessStatusCode)
+        {
+            var s = await rResp.Content.ReadAsStringAsync();
+            var regs = JsonSerializer.Deserialize<List<RegistrationDto>>(s, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (regs != null)
+            {
+                foreach (var r in regs)
+                {
+                    if (r.EventSelections != null)
+                    {
+                        foreach (var selection in r.EventSelections)
+                        {
+                            var key = selection.EventId ?? "";
+                            if (!string.IsNullOrEmpty(key))
+                            {
+                                if (!counts.ContainsKey(key)) counts[key] = (0, 0);
+                                var tuple = counts[key];
+                                if (selection.Status?.ToLowerInvariant() == "confirmed") tuple.registered += 1;
+                                else if (selection.Status?.ToLowerInvariant() == "waitlisted") tuple.waitlist += 1;
+                                counts[key] = tuple;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        loading = false;
+        StateHasChanged();
+    }
+
+    private async Task Promote(string eventId)
+    {
+        var resp = await Api.PromoteWaitlistAsync(eventId);
+        if (resp.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+        else
+        {
+            var msg = await resp.Content.ReadAsStringAsync();
+            await Microsoft.JSInterop.JSRuntimeExtensions.InvokeVoidAsync(JS, "alert", $"Promote failed: {resp.StatusCode} - {msg}");
+        }
+    }
+
+    private class EventDto
+    {
+        public string Id { get; set; } = "";
+        public string Title { get; set; } = "";
+        public int? Capacity { get; set; }
+    }
+
+    private class RegistrationDto
+    {
+        public string Id { get; set; } = "";
+        public EventSelectionDto[]? EventSelections { get; set; }
+    }
+
+    private class EventSelectionDto
+    {
+        public string EventId { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+}
