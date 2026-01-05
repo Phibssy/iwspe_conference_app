@@ -25,11 +25,59 @@ namespace Conference.Functions
                 return bad;
             }
 
-            await _cosmos.AddRegistrationAsync(reg);
+            // Map legacy SelectedEvents to EventSelections if present
+            if ((reg.EventSelections == null || reg.EventSelections.Length == 0) && reg.SelectedEvents != null && reg.SelectedEvents.Length > 0)
+            {
+                reg.EventSelections = reg.SelectedEvents.Select(e => new Models.EventSelection { EventId = e }).ToArray();
+            }
+
+            var enforce = (Environment.GetEnvironmentVariable("ENFORCE_CAPACITY") ?? "false").ToLower() == "true";
+
+            // Load events to get capacities
+            var programs = await _cosmos.GetProgramAsync();
+            var events = programs.SelectMany(p => p.Events ?? Enumerable.Empty<Models.EventItem>()).ToDictionary(e => e.Id ?? e.Name, e => e);
+
+            var rejectedEvents = new List<string>();
+
+            foreach (var sel in reg.EventSelections ?? Array.Empty<Models.EventSelection>())
+            {
+                if (string.IsNullOrWhiteSpace(sel.EventId)) continue;
+                if (!events.TryGetValue(sel.EventId, out var evt))
+                {
+                    // unknown event - reject
+                    rejectedEvents.Add(sel.EventId);
+                    continue;
+                }
+
+                var confirmed = await _cosmos.CountConfirmedForEventAsync(sel.EventId);
+                var waitlisted = await _cosmos.CountWaitlistedForEventAsync(sel.EventId);
+                var status = CapacityManager.DecideStatus(confirmed, waitlisted, evt.Capacity, evt.WaitlistCapacity, enforce);
+                if (status == "rejected")
+                {
+                    rejectedEvents.Add(sel.EventId);
+                }
+                else
+                {
+                    sel.Status = status;
+                    sel.RegisteredAt = DateTime.UtcNow.ToString("o");
+                }
+            }
+
+            if (rejectedEvents.Any())
+            {
+                var conflict = req.CreateResponse(HttpStatusCode.Conflict);
+                await conflict.WriteStringAsync(JsonSerializer.Serialize(new { error = "events full", events = rejectedEvents }));
+                return conflict;
+            }
+
+            // set creation timestamp
+            if (string.IsNullOrWhiteSpace(reg.CreatedAt)) reg.CreatedAt = DateTime.UtcNow.ToString("o");
+
+            await _cosmos.UpsertRegistrationAsync(reg);
 
             var response = req.CreateResponse(HttpStatusCode.Created);
             response.Headers.Add("Content-Type", "application/json");
-            await response.WriteStringAsync(JsonSerializer.Serialize(new { message = "registration received", id = reg.Id }));
+            await response.WriteStringAsync(JsonSerializer.Serialize(new { message = "registration received", id = reg.Id, selections = reg.EventSelections }));
             return response;
         }
 
